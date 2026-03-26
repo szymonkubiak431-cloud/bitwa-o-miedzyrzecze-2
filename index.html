@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<title>Turniej</title>
+
+<style>
+  body {
+    background: #0d0d0d;
+    color: #e6e6e6;
+    font-family: "Segoe UI", sans-serif;
+    margin: 0;
+    padding: 20px;
+  }
+
+  h1, h2, h3 {
+    text-align: center;
+    color: #f1f1f1;
+    letter-spacing: 1px;
+  }
+
+  .container {
+    display: flex;
+    justify-content: center;
+    gap: 25px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+
+  .group {
+    background: #1a1a1a;
+    padding: 15px;
+    border-radius: 10px;
+    width: 320px;
+    box-shadow: 0 0 15px #000;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+  }
+
+  th {
+    background: #262626;
+    padding: 8px;
+    border-bottom: 2px solid #333;
+  }
+
+  td {
+    padding: 8px;
+    border-bottom: 1px solid #333;
+  }
+
+  .section {
+    background: #1a1a1a;
+    padding: 15px;
+    border-radius: 10px;
+    margin-top: 20px;
+    box-shadow: 0 0 15px #000;
+  }
+
+  .match {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    padding: 12px;
+    margin: 10px 0;
+    background: #141414;
+    border-radius: 8px;
+    box-shadow: inset 0 0 10px #000;
+  }
+
+  button {
+    background: #333;
+    color: #eee;
+    border: 2px solid #555;
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: 0.2s;
+  }
+
+  button:hover:not(:disabled) {
+    background: #555;
+    border-color: #777;
+  }
+
+  button:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+
+  .winner {
+    background-color: #2ecc71 !important;
+    border-color: #27ae60 !important;
+    color: #fff !important;
+    box-shadow: 0 0 12px #2ecc71;
+  }
+
+  .loser {
+    background-color: #e74c3c !important;
+    border-color: #c0392b !important;
+    color: #fff !important;
+    box-shadow: 0 0 12px #e74c3c;
+  }
+</style>
+</head>
+
+<body>
+
+<h1>Bitwa o Międzyrzecze 3</h1>
+
+<div class="container">
+  <div class="group">
+    <h2>Grupa A</h2>
+    <table id="groupA"></table>
+  </div>
+
+  <div class="group">
+    <h2>Grupa B</h2>
+    <table id="groupB"></table>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Walki grupowe</h2>
+  <div id="matches"></div>
+</div>
+
+<div class="section" id="bracket"></div>
+
+<script>
+/* ===========================
+   DANE
+=========================== */
+let groupA = [
+  {name:"Szyszka",W:0,L:0,M:0},
+  {name:"Adam",W:0,L:0,M:0},
+  {name:"Pienki",W:0,L:0,M:0},
+  {name:"Placek",W:0,L:0,M:0}
+];
+
+let groupB = [
+  {name:"Młody",W:0,L:0,M:0},
+  {name:"Miłosz",W:0,L:0,M:0},
+  {name:"Pichol",W:0,L:0,M:0},
+  {name:"Filip",W:0,L:0,M:0}
+];
+
+let semifinalWinners = [];
+let semifinalPlayed = [false,false];
+let finalWinner = null;
+let finalPlayed = false;
+
+let semiClasses = [null, null];
+let finalClasses = null;
+
+let ref = {};
+
+/* ===========================
+   TABELA
+=========================== */
+function renderTable(group, id){
+  group.sort((a,b)=>b.W-a.W);
+  let html = "<tr><th>Nick</th><th>W</th><th>L</th></tr>";
+  group.forEach(p=>{
+    html += `<tr>
+      <td>${p.name}</td>
+      <td>${p.W}</td>
+      <td>${p.L}</td>
+    </tr>`;
+  });
+  document.getElementById(id).innerHTML = html;
+}
+
+/* ===========================
+   WALKI GRUPOWE
+=========================== */
+function renderMatches(){
+  ref = {};
+  [...groupA, ...groupB].forEach(p => ref[p.name] = p);
+
+  let A = groupA.map(p=>p.name);
+  let B = groupB.map(p=>p.name);
+
+  let matches = [
+    [A[0],A[2]], [B[0],B[2]],
+    [A[1],A[3]], [B[1],B[3]],
+    [A[0],A[3]], [B[0],B[3]],
+    [A[1],A[2]], [B[1],B[2]],
+    [A[0],A[1]], [B[0],B[1]],
+    [A[2],A[3]], [B[2],B[3]],
+  ];
+
+  let html = "";
+  matches.forEach((m,i)=>{
+    html += `<div class="match" id="match-${i}">
+      <button id="m${i}-p1" onclick="playMatch(${i}, '${m[0]}', '${m[1]}')">${m[0]}</button>
+      <span>vs</span>
+      <button id="m${i}-p2" onclick="playMatch(${i}, '${m[1]}', '${m[0]}')">${m[1]}</button>
+    </div>`;
+  });
+
+  document.getElementById("matches").innerHTML = html;
+}
+
+function playMatch(id, winnerName, loserName){
+  let matchDiv = document.getElementById("match-"+id);
+  if(matchDiv.classList.contains("played")) return;
+
+  let winner = ref[winnerName];
+  let loser = ref[loserName];
+
+  winner.W++; loser.L++;
+  winner.M++; loser.M++;
+
+  matchDiv.classList.add("played");
+
+  let b1 = document.getElementById(`m${id}-p1`);
+  let b2 = document.getElementById(`m${id}-p2`);
+  b1.disabled = true;
+  b2.disabled = true;
+
+  if(b1.innerText === winnerName){
+    b1.classList.add("winner");
+    b2.classList.add("loser");
+  } else {
+    b2.classList.add("winner");
+    b1.classList.add("loser");
+  }
+
+  renderAll();
+}
+
+function allGroupMatchesPlayed() {
+  return [...document.querySelectorAll("#matches .match")]
+    .every(m => m.classList.contains("played"));
+}
+
+/* ===========================
+   DOGRYWKI
+=========================== */
+function checkTie(group){
+  let sorted = [...group].sort((a,b)=>b.W-a.W);
+
+  if(sorted[0].W === sorted[1].W && sorted[1].W === sorted[2].W){
+    return { type: "top3", players: sorted.slice(0,3) };
+  }
+
+  if(sorted[1].W === sorted[2].W && sorted[2].W === sorted[3].W){
+    return { type: "mid3", players: sorted.slice(1,4) };
+  }
+
+  if(sorted[1].W === sorted[2].W){
+    return { type: "mid2", players: sorted.slice(1,3) };
+  }
+
+  return null;
+}
+
+function playTie(winnerName, losers, type){
+  let winner = ref[winnerName];
+  winner.W++;
+  winner.M++;
+  losers.forEach(l => {
+    ref[l].L++;
+    ref[l].M++;
+  });
+
+  renderAll();
+}
+
+/* ===========================
+   PÓŁFINAŁY
+=========================== */
+function playSemi(id, winner, loser){
+  if(semifinalPlayed[id]) return;
+
+  semifinalPlayed[id] = true;
+  semifinalWinners[id] = winner;
+
+  let btn1 = document.getElementById(`s${id+1}p1`);
+  let btn2 = document.getElementById(`s${id+1}p2`);
+
+  btn1.disabled = true;
+  btn2.disabled = true;
+
+  if(btn1.innerText === winner){
+    btn1.classList.add("winner");
+    btn2.classList.add("loser");
+    semiClasses[id] = "p1";
+  } else {
+    btn2.classList.add("winner");
+    btn1.classList.add("loser");
+    semiClasses[id] = "p2";
+  }
+
+  renderAll();
+}
+
+/* ===========================
+   FINAŁ
+=========================== */
+function playFinal(winner, loser){
+  if(finalPlayed) return;
+
+  finalPlayed = true;
+  finalWinner = winner;
+
+  let f1 = document.getElementById("f1");
+  let f2 = document.getElementById("f2");
+
+  f1.disabled = true;
+  f2.disabled = true;
+
+  if(f1.innerText === winner){
+    f1.classList.add("winner");
+    f2.classList.add("loser");
+    finalClasses = "f1";
+  } else {
+    f2.classList.add("winner");
+    f1.classList.add("loser");
+    finalClasses = "f2";
+  }
+
+  renderAll();
+}
+
+/* ===========================
+   DRABINKA
+=========================== */
+function updateBracket(){
+  let bracketDiv = document.getElementById("bracket");
+
+  if (!allGroupMatchesPlayed()) {
+    bracketDiv.innerHTML = "<h3>Rozegraj wszystkie walki grupowe</h3>";
+    return;
+  }
+
+  let tieA = checkTie(groupA);
+  let tieB = checkTie(groupB);
+
+  let html = "";
+
+  if(tieA){
+    html += `<h3>Dogrywka Grupa A (${tieA.type})</h3>
+      <div class="match">` +
+      tieA.players.map(p =>
+        `<button onclick="playTie(
+          '${p.name}',
+          [${tieA.players.filter(x => x.name !== p.name).map(x => `'${x.name}'`).join(",")}],
+          '${tieA.type}'
+        )">${p.name}</button>`
+      ).join(" vs ") +
+      `</div>`;
+  }
+
+  if(tieB){
+    html += `<h3>Dogrywka Grupa B (${tieB.type})</h3>
+      <div class="match">` +
+      tieB.players.map(p =>
+        `<button onclick="playTie(
+          '${p.name}',
+          [${tieB.players.filter(x => x.name !== p.name).map(x => `'${x.name}'`).join(",")}],
+          '${tieB.type}'
+        )">${p.name}</button>`
+      ).join(" vs ") +
+      `</div>`;
+  }
+
+  if(tieA || tieB){
+    bracketDiv.innerHTML = html;
+    return;
+  }
+
+  let A = [...groupA].sort((a,b)=>b.W-a.W).slice(0,2);
+  let B = [...groupB].sort((a,b)=>b.W-a.W).slice(0,2);
+
+  html += `<h2>Półfinały</h2>
+    <div class="match">
+      <button id="s1p1" onclick="playSemi(0,'${A[0].name}','${B[1].name}')">${A[0].name}</button> vs
+      <button id="s1p2" onclick="playSemi(0,'${B[1].name}','${A[0].name}')">${B[1].name}</button>
+    </div>
+    <div class="match">
+      <button id="s2p1" onclick="playSemi(1,'${B[0].name}','${A[1].name}')">${B[0].name}</button> vs
+      <button id="s2p2" onclick="playSemi(1,'${A[1].name}','${B[0].name}')">${A[1].name}</button>
+    </div>`;
+
+  if(semifinalWinners.length === 2){
+    html += `<h2>Finał</h2>
+      <div class="match">
+        <button id="f1" onclick="playFinal('${semifinalWinners[0]}','${semifinalWinners[1]}')">${semifinalWinners[0]}</button> vs
+        <button id="f2" onclick="playFinal('${semifinalWinners[1]}','${semifinalWinners[0]}')">${semifinalWinners[1]}</button>
+      </div>`;
+  }
+
+  if(finalWinner){
+    html += `<h2>🏆 ${finalWinner}</h2>`;
+  }
+
+  bracketDiv.innerHTML = html;
+
+  if (semifinalPlayed[0]) {
+    let b1 = document.getElementById("s1p1");
+    let b2 = document.getElementById("s1p2");
+    if (semiClasses[0] === "p1") { b1.classList.add("winner"); b2.classList.add("loser"); }
+    if (semiClasses[0] === "p2") { b2.classList.add("winner"); b1.classList.add("loser"); }
+  }
+
+  if (semifinalPlayed[1]) {
+    let b1 = document.getElementById("s2p1");
+    let b2 = document.getElementById("s2p2");
+    if (semiClasses[1] === "p1") { b1.classList.add("winner"); b2.classList.add("loser"); }
+    if (semiClasses[1] === "p2") { b2.classList.add("winner"); b1.classList.add("loser"); }
+  }
+
+  if (finalPlayed) {
+    let f1 = document.getElementById("f1");
+    let f2 = document.getElementById("f2");
+    if (finalClasses === "f1") { f1.classList.add("winner"); f2.classList.add("loser"); }
+    if (finalClasses === "f2") { f2.classList.add("winner"); f1.classList.add("loser"); }
+  }
+}
+
+/* ===========================
+   RENDER
+=========================== */
+function renderAll(){
+  renderTable(groupA,"groupA");
+  renderTable(groupB,"groupB");
+  updateBracket();
+}
+
+renderMatches();
+renderAll();
+</script>
+
+</body>
+</html>
